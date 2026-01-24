@@ -21,9 +21,11 @@ def load_data():
         B.ISBN, 
         B.CATEGORIES,
         B.PUBLISHED_DATE,
-        A.LASTNAME as AUTHOR_NAME
+        A.LASTNAME as AUTHOR_NAME,
+        L.NAME as LANGUAGE
     FROM BOOK B
     LEFT JOIN AUTHOR A ON B.AUTHOR = A.ID
+    LEFT JOIN LANGUAGES L ON B.LANGUAGE_ID = L.ID
     """
     df = pd.read_sql_query(query, conn)
     conn.close()
@@ -37,7 +39,8 @@ df = load_data()
 # --- SIDEBAR FILTERS ---
 st.sidebar.header("Filters")
 search_term = st.sidebar.text_input("Search Title or Summary")
-selected_category = st.sidebar.selectbox("Category", ["All"] + list(df['CATEGORIES'].unique()))
+selected_category = st.sidebar.selectbox("Category", ["Alle"] + list(df['CATEGORIES'].unique()))
+selected_language = st.sidebar.selectbox("Language", ["Alle"] + list(df['LANGUAGE'].unique()))
 
 # --- FILTER LOGIC ---
 filtered_df = df.copy()
@@ -48,17 +51,20 @@ if search_term:
         filtered_df['SUMMARY'].str.contains(search_term, case=False, na=False)
     ]
 
-if selected_category != "All":
+if selected_category != "Alle":
     filtered_df = filtered_df[filtered_df['CATEGORIES'] == selected_category]
+    
+if selected_language != "Alle":
+    filtered_df = filtered_df[filtered_df['LANGUAGE'] == selected_language]
 
 # --- DISPLAY ---
-st.write(f"Showing {len(filtered_df)} books")
+st.write(f"Zeigt {len(filtered_df)} Einträge")
 
 # Display as a clean table or cards
 for index, row in filtered_df.iterrows():
     with st.container():
         st.subheader(row['TITLE'])
-        st.write(f"**Author:** {row['AUTHOR_NAME']} | **Category:** {row['CATEGORIES']}")
-        with st.expander("View Summary"):
+        st.write(f"**Author:** {row['AUTHOR_NAME']} | **Kategorie:** {row['CATEGORIES']} | **Sprache:** {row['LANGUAGE']}")
+        with st.expander("Zusammenfassung ausklappen"):
             st.write(row['SUMMARY'])
         st.divider()
