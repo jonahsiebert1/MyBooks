@@ -22,10 +22,14 @@ def load_data():
         B.CATEGORIES,
         B.PUBLISHED_DATE,
         A.LASTNAME as AUTHOR_NAME,
-        L.NAME as LANGUAGE
+        L.NAME as LANGUAGE,
+        O.name as OWNER,
+        S.name as STATUS
     FROM BOOK B
     LEFT JOIN AUTHOR A ON B.AUTHOR = A.ID
     LEFT JOIN LANGUAGES L ON B.LANGUAGE_ID = L.ID
+    LEFT JOIN OWNER O ON B.OWNER_id = O.id
+    LEFT JOIN STATUS S ON B.STATUS_ID = STATUS.id
     """
     df = pd.read_sql_query(query, conn)
     conn.close()
@@ -64,7 +68,7 @@ st.write(f"Zeigt {len(filtered_df)} Einträge")
 for index, row in filtered_df.iterrows():
     with st.container():
         st.subheader(row['TITLE'])
-        st.write(f"**Author:** {row['AUTHOR_NAME']} | **Kategorie:** {row['CATEGORIES']} | **Sprache:** {row['LANGUAGE']}")
+        st.write(f"**Author:** {row['AUTHOR_NAME']} | **Kategorie:** {row['CATEGORIES']} | **Sprache:** {row['LANGUAGE']} | **Status:** {row['OWNER']}, {row['STATUS']}")
         with st.expander("Zusammenfassung ausklappen"):
             st.write(row['SUMMARY'])
         st.divider()
