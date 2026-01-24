@@ -29,7 +29,7 @@ def load_data():
     LEFT JOIN AUTHOR A ON B.AUTHOR = A.ID
     LEFT JOIN LANGUAGES L ON B.LANGUAGE_ID = L.ID
     LEFT JOIN OWNER O ON B.OWNER_id = O.id
-    LEFT JOIN STATUS S ON B.STATUS_ID = STATUS.id
+    LEFT JOIN STATUS S ON B.STATUS_ID = S.id
     """
     df = pd.read_sql_query(query, conn)
     conn.close()
