@@ -21,7 +21,7 @@ def load_data():
         B.ISBN, 
         B.CATEGORIES,
         B.PUBLISHED_DATE,
-        A.NAME as AUTHOR_NAME
+        A.LASTNAME as AUTHOR_NAME
     FROM BOOK B
     LEFT JOIN AUTHOR A ON B.AUTHOR = A.ID
     """
