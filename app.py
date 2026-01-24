@@ -45,6 +45,8 @@ st.sidebar.header("Filters")
 search_term = st.sidebar.text_input("Search Title or Summary")
 selected_category = st.sidebar.selectbox("Category", ["Alle"] + list(df['CATEGORIES'].unique()))
 selected_language = st.sidebar.selectbox("Language", ["Alle"] + list(df['LANGUAGE'].unique()))
+selected_owner = st.sidebar.selectbox("In Besitz?", ["Alle"] + list(df['OWNER'].unique()))
+selected_status = st.sidebar.selectbox("Lesestatus", ["Alle"] + list(df['STATUS'].unique()))
 
 # --- FILTER LOGIC ---
 filtered_df = df.copy()
@@ -60,6 +62,12 @@ if selected_category != "Alle":
     
 if selected_language != "Alle":
     filtered_df = filtered_df[filtered_df['LANGUAGE'] == selected_language]
+
+if selected_owner != "Alle":
+    filtered_df = filtered_df[filtered_df['OWNER'] == selected_owner]
+
+if selected_status != "Alle":
+    filtered_df = filtered_df[filtered_df['STATUS'] == selected_status]
 
 # --- DISPLAY ---
 st.write(f"Zeigt {len(filtered_df)} Einträge")
