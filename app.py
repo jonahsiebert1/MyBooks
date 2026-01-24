@@ -5,9 +5,14 @@ import pandas as pd
 # Page configuration
 st.set_page_config(page_title="My Book Collection", layout="wide")
 
-# Function to load data
+import os
+
 def load_data():
-    conn = sqlite3.connect('books.db')
+    # Get the absolute path to the directory this script is in
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    db_path = os.path.join(base_dir, 'books.db')
+    
+    conn = sqlite3.connect(db_path)
     # We use a JOIN to show the actual Author Name instead of just the ID number
     query = """
     SELECT 
