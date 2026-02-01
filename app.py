@@ -19,7 +19,7 @@ def run_query(query, params=()):
 st.set_page_config(page_title="My Book Collection", layout="wide")
 st.title("📚 Personal Library Manager")
 
-tab1, tab2 = st.tabs(["📖 View Collection", "➕ Add/Edit Books"])
+tab1, tab2, tab3 = st.tabs(["📖 View Collection", "➕ Add Books", "Edit Books"])
 
 # --- TAB 1: VIEWING (Your existing logic) ---
 with tab1:
@@ -187,3 +187,57 @@ with tab2:
                 run_query(update_query, (edit_title, edit_summary, int(new_a_id), int(book_id)))
                 st.success(f"Updated '{edit_title}' successfully!")
                 st.rerun()
+
+    with tab3:
+        st.header("Add Entries")
+        
+        conn = get_db_connection()
+        
+        # Load and force all column names to UPPERCASE to avoid KeyErrors
+        authors = pd.read_sql_query("SELECT * FROM AUTHOR", conn)
+        authors.columns = [c.upper() for c in authors.columns]
+        
+        statuses = pd.read_sql_query("SELECT * FROM STATUS", conn)
+        statuses.columns = [c.upper() for c in statuses.columns]
+        
+        owners = pd.read_sql_query("SELECT * FROM OWNER", conn)
+        owners.columns = [c.upper() for c in owners.columns]
+        
+        languages = pd.read_sql_query("SELECT * FROM LANGUAGES", conn)
+        languages.columns = [c.upper() for c in languages.columns]
+        
+        conn.close()
+    
+        # Create the form
+        with st.form("add_book_form", clear_on_submit=True):
+            st.subheader("Add New Book")
+            new_title = st.text_input("Title")
+            new_summary = st.text_area("Summary")
+            new_isbn = st.text_input("ISBN")
+            
+            # Use UPPERCASE keys here to match the transformation above
+            author_choice = st.selectbox("Author", authors['LASTNAME'].tolist())
+            status_choice = st.selectbox("Status", statuses['NAME'].tolist())
+            owner_choice = st.selectbox("Owner", owners['NAME'].tolist())
+            lang_choice = st.selectbox("Language", languages['NAME'].tolist())
+            
+            # This button MUST be inside the 'with st.form' block
+            submitted = st.form_submit_button("Save Book")
+    
+            if submitted:
+                if not new_title:
+                    st.warning("Please provide a title.")
+                else:
+                    # Map names back to IDs using UPPERCASE keys
+                    a_id = authors[authors['LASTNAME'] == author_choice]['ID'].values[0]
+                    s_id = statuses[statuses['NAME'] == status_choice]['ID'].values[0]
+                    o_id = owners[owners['NAME'] == owner_choice]['ID'].values[0]
+                    l_id = languages[languages['NAME'] == lang_choice]['ID'].values[0]
+    
+                    insert_query = """
+                    INSERT INTO BOOK (TITLE, SUMMARY, ISBN, AUTHOR, STATUS_ID, OWNER_ID, LANGUAGE_ID)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """
+                    run_query(insert_query, (new_title, new_summary, new_isbn, int(a_id), int(s_id), int(o_id), int(l_id)))
+                    st.success(f"Successfully added {new_title}!")
+                    st.rerun()
