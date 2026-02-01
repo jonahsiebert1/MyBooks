@@ -19,7 +19,7 @@ def run_query(query, params=()):
 st.set_page_config(page_title="My Book Collection", layout="wide")
 st.title("📚 Personal Library Manager")
 
-tab1, tab2, tab3 = st.tabs(["📖 View Collection", "➕ Add Books", "Edit Books"])
+tab1, tab2, tab3 = st.tabs(["📖 View Collection", "📝 Edit Books", "➕ Add Books"])
 
 # --- TAB 1: VIEWING (Your existing logic) ---
 with tab1:
