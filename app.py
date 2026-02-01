@@ -110,39 +110,52 @@ with tab1:
 with tab2:
     st.header("Manage Entries")
     
-    # We need to fetch current lists for dropdowns
     conn = get_db_connection()
-    authors = pd.read_sql_query("SELECT id, lastname FROM AUTHOR", conn)
+    # Using 'AS' in SQL ensures we know exactly what the column name will be in Pandas
+    authors = pd.read_sql_query("SELECT id, LASTNAME as lastname FROM AUTHOR", conn)
     statuses = pd.read_sql_query("SELECT id, name FROM STATUS", conn)
     owners = pd.read_sql_query("SELECT id, name FROM OWNER", conn)
     languages = pd.read_sql_query("SELECT id, name FROM LANGUAGES", conn)
     conn.close()
 
-    with st.form("add_book_form"):
+    # 1. Start the Form
+    with st.form("add_book_form", clear_on_submit=True):
         st.subheader("Add New Book")
         new_title = st.text_input("Title")
         new_summary = st.text_area("Summary")
         new_isbn = st.text_input("ISBN")
         
-        # Dropdowns using the IDs from the DB
-        author_choice = st.selectbox("Author", authors['lastname'].tolist())
-        status_choice = st.selectbox("Status", statuses['name'].tolist())
+        # We use .get() or check empty to prevent errors if the DB tables are empty
+        author_list = authors['lastname'].tolist() if not authors.empty else ["No Authors Found"]
+        status_list = statuses['name'].tolist() if not statuses.empty else ["No Status Found"]
+        
+        author_choice = st.selectbox("Author", author_list)
+        status_choice = st.selectbox("Status", status_list)
         owner_choice = st.selectbox("Owner", owners['name'].tolist())
         lang_choice = st.selectbox("Language", languages['name'].tolist())
         
-        submit_button = st.form_submit_button("Save Book")
+        # 2. THE SUBMIT BUTTON (Must be inside the 'with st.form' block)
+        submitted = st.form_submit_button("Save Book to Database")
 
-        if submit_button:
-            # Map names back to IDs
-            a_id = authors[authors['lastname'] == author_choice]['id'].values[0]
-            s_id = statuses[statuses['name'] == status_choice]['id'].values[0]
-            o_id = owners[owners['name'] == owner_choice]['id'].values[0]
-            l_id = languages[languages['name'] == lang_choice]['id'].values[0]
+        # 3. Handle Form Submission
+        if submitted:
+            if not new_title:
+                st.error("Please enter a Title.")
+            else:
+                try:
+                    # Map names back to IDs
+                    a_id = authors[authors['lastname'] == author_choice]['id'].values[0]
+                    s_id = statuses[statuses['name'] == status_choice]['id'].values[0]
+                    o_id = owners[owners['name'] == owner_choice]['id'].values[0]
+                    l_id = languages[languages['name'] == lang_choice]['id'].values[0]
 
-            insert_query = """
-            INSERT INTO BOOK (TITLE, SUMMARY, ISBN, AUTHOR, STATUS_ID, OWNER_ID, LANGUAGE_ID)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """
-            run_query(insert_query, (new_title, new_summary, new_isbn, int(a_id), int(s_id), int(o_id), int(l_id)))
-            st.success(f"Added '{new_title}' successfully!")
-            st.rerun() # Refresh to show new data in Tab 1
+                    insert_query = """
+                    INSERT INTO BOOK (TITLE, SUMMARY, ISBN, AUTHOR, STATUS_ID, OWNER_ID, LANGUAGE_ID)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """
+                    run_query(insert_query, (new_title, new_summary, new_isbn, int(a_id), int(s_id), int(o_id), int(l_id)))
+                    st.success(f"✅ Added '{new_title}' successfully!")
+                    # Use st.rerun() so Tab 1 updates immediately
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"An error occurred: {e}")
