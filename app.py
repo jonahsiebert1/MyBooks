@@ -110,53 +110,68 @@ with tab1:
 with tab2:
     st.header("Manage Entries")
     
+    # --- DATA PREPARATION ---
     conn = get_db_connection()
     
-    # Load and force all column names to UPPERCASE to avoid KeyErrors
-    authors = pd.read_sql_query("SELECT * FROM AUTHOR", conn)
+    # Authors with combined name and sorting
+    authors = pd.read_sql_query("SELECT ID, FIRSTNAME, LASTNAME FROM AUTHOR", conn)
     authors.columns = [c.upper() for c in authors.columns]
+    authors['FULL_NAME'] = authors['LASTNAME'] + ", " + authors['FIRSTNAME']
+    author_list = sorted(authors['FULL_NAME'].tolist())
     
-    statuses = pd.read_sql_query("SELECT * FROM STATUS", conn)
-    statuses.columns = [c.upper() for c in statuses.columns]
+    # Get other tables
+    statuses = pd.read_sql_query("SELECT * FROM STATUS", conn); statuses.columns = [c.upper() for c in statuses.columns]
+    owners = pd.read_sql_query("SELECT * FROM OWNER", conn); owners.columns = [c.upper() for c in owners.columns]
+    languages = pd.read_sql_query("SELECT * FROM LANGUAGES", conn); languages.columns = [c.upper() for c in languages.columns]
     
-    owners = pd.read_sql_query("SELECT * FROM OWNER", conn)
-    owners.columns = [c.upper() for c in owners.columns]
-    
-    languages = pd.read_sql_query("SELECT * FROM LANGUAGES", conn)
-    languages.columns = [c.upper() for c in languages.columns]
+    # Get current books for the "Edit" selector
+    books_df = pd.read_sql_query("SELECT ID, TITLE FROM BOOK", conn)
+    books_df.columns = [c.upper() for c in books_df.columns]
+    book_titles = sorted(books_df['TITLE'].tolist())
     
     conn.close()
 
-    # Create the form
-    with st.form("add_book_form", clear_on_submit=True):
-        st.subheader("Add New Book")
-        new_title = st.text_input("Title")
-        new_summary = st.text_area("Summary")
-        new_isbn = st.text_input("ISBN")
-        
-        # Use UPPERCASE keys here to match the transformation above
-        author_choice = st.selectbox("Author", authors['LASTNAME'].tolist())
-        status_choice = st.selectbox("Status", statuses['NAME'].tolist())
-        owner_choice = st.selectbox("Owner", owners['NAME'].tolist())
-        lang_choice = st.selectbox("Language", languages['NAME'].tolist())
-        
-        # This button MUST be inside the 'with st.form' block
-        submitted = st.form_submit_button("Save Book")
+    # --- EDIT SECTION ---
+    st.subheader("📝 Edit Existing Book")
+    selected_book_title = st.selectbox("Select a book to edit", ["-- Choose a Book --"] + book_titles)
 
-        if submitted:
-            if not new_title:
-                st.warning("Please provide a title.")
-            else:
-                # Map names back to IDs using UPPERCASE keys
-                a_id = authors[authors['LASTNAME'] == author_choice]['ID'].values[0]
-                s_id = statuses[statuses['NAME'] == status_choice]['ID'].values[0]
-                o_id = owners[owners['NAME'] == owner_choice]['ID'].values[0]
-                l_id = languages[languages['NAME'] == lang_choice]['ID'].values[0]
+    if selected_book_title != "-- Choose a Book --":
+        # Fetch current details of the selected book
+        book_id = books_df[books_df['TITLE'] == selected_book_title]['ID'].values[0]
+        
+        # We need a fresh connection to get the specific record
+        with get_db_connection() as conn:
+            current_book = pd.read_sql_query(f"SELECT * FROM BOOK WHERE ID = {book_id}", conn).iloc[0]
+        
+        with st.form("edit_book_form"):
+            # Pre-fill inputs using 'value' or 'index'
+            edit_title = st.text_input("Title", value=current_book['TITLE'])
+            edit_summary = st.text_area("Summary", value=current_book['SUMMARY'])
+            
+            # Find the index of the current values to set them as defaults in dropdowns
+            # We match IDs to find the correct dropdown position
+            def get_index(df, col, current_val):
+                try:
+                    return df[df[col] == current_val].index[0]
+                except:
+                    return 0
 
-                insert_query = """
-                INSERT INTO BOOK (TITLE, SUMMARY, ISBN, AUTHOR, STATUS_ID, OWNER_ID, LANGUAGE_ID)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+            edit_author = st.selectbox("Author", author_list, 
+                                      index=author_list.index(authors[authors['ID'] == current_book['AUTHOR']]['FULL_NAME'].values[0]))
+            
+            # ... (Add other selectboxes like status/owner similarly)
+
+            save_changes = st.form_submit_button("Update Book")
+
+            if save_changes:
+                # Map selected full name back to ID
+                new_a_id = authors[authors['FULL_NAME'] == edit_author]['ID'].values[0]
+                
+                update_query = """
+                UPDATE BOOK 
+                SET TITLE = ?, SUMMARY = ?, AUTHOR = ?
+                WHERE ID = ?
                 """
-                run_query(insert_query, (new_title, new_summary, new_isbn, int(a_id), int(s_id), int(o_id), int(l_id)))
-                st.success(f"Successfully added {new_title}!")
+                run_query(update_query, (edit_title, edit_summary, int(new_a_id), int(book_id)))
+                st.success(f"Updated '{edit_title}'!")
                 st.rerun()
