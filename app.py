@@ -111,51 +111,52 @@ with tab2:
     st.header("Manage Entries")
     
     conn = get_db_connection()
-    # Using 'AS' in SQL ensures we know exactly what the column name will be in Pandas
-    authors = pd.read_sql_query("SELECT id, LASTNAME as lastname FROM AUTHOR", conn)
-    statuses = pd.read_sql_query("SELECT id, name FROM STATUS", conn)
-    owners = pd.read_sql_query("SELECT id, name FROM OWNER", conn)
-    languages = pd.read_sql_query("SELECT id, name FROM LANGUAGES", conn)
+    
+    # Load and force all column names to UPPERCASE to avoid KeyErrors
+    authors = pd.read_sql_query("SELECT * FROM AUTHOR", conn)
+    authors.columns = [c.upper() for c in authors.columns]
+    
+    statuses = pd.read_sql_query("SELECT * FROM STATUS", conn)
+    statuses.columns = [c.upper() for c in statuses.columns]
+    
+    owners = pd.read_sql_query("SELECT * FROM OWNER", conn)
+    owners.columns = [c.upper() for c in owners.columns]
+    
+    languages = pd.read_sql_query("SELECT * FROM LANGUAGES", conn)
+    languages.columns = [c.upper() for c in languages.columns]
+    
     conn.close()
 
-    # 1. Start the Form
+    # Create the form
     with st.form("add_book_form", clear_on_submit=True):
         st.subheader("Add New Book")
         new_title = st.text_input("Title")
         new_summary = st.text_area("Summary")
         new_isbn = st.text_input("ISBN")
         
-        # We use .get() or check empty to prevent errors if the DB tables are empty
-        author_list = authors['lastname'].tolist() if not authors.empty else ["No Authors Found"]
-        status_list = statuses['name'].tolist() if not statuses.empty else ["No Status Found"]
+        # Use UPPERCASE keys here to match the transformation above
+        author_choice = st.selectbox("Author", authors['LASTNAME'].tolist())
+        status_choice = st.selectbox("Status", statuses['NAME'].tolist())
+        owner_choice = st.selectbox("Owner", owners['NAME'].tolist())
+        lang_choice = st.selectbox("Language", languages['NAME'].tolist())
         
-        author_choice = st.selectbox("Author", author_list)
-        status_choice = st.selectbox("Status", status_list)
-        owner_choice = st.selectbox("Owner", owners['name'].tolist())
-        lang_choice = st.selectbox("Language", languages['name'].tolist())
-        
-        # 2. THE SUBMIT BUTTON (Must be inside the 'with st.form' block)
-        submitted = st.form_submit_button("Save Book to Database")
+        # This button MUST be inside the 'with st.form' block
+        submitted = st.form_submit_button("Save Book")
 
-        # 3. Handle Form Submission
         if submitted:
             if not new_title:
-                st.error("Please enter a Title.")
+                st.warning("Please provide a title.")
             else:
-                try:
-                    # Map names back to IDs
-                    a_id = authors[authors['lastname'] == author_choice]['id'].values[0]
-                    s_id = statuses[statuses['name'] == status_choice]['id'].values[0]
-                    o_id = owners[owners['name'] == owner_choice]['id'].values[0]
-                    l_id = languages[languages['name'] == lang_choice]['id'].values[0]
+                # Map names back to IDs using UPPERCASE keys
+                a_id = authors[authors['LASTNAME'] == author_choice]['ID'].values[0]
+                s_id = statuses[statuses['NAME'] == status_choice]['ID'].values[0]
+                o_id = owners[owners['NAME'] == owner_choice]['ID'].values[0]
+                l_id = languages[languages['NAME'] == lang_choice]['ID'].values[0]
 
-                    insert_query = """
-                    INSERT INTO BOOK (TITLE, SUMMARY, ISBN, AUTHOR, STATUS_ID, OWNER_ID, LANGUAGE_ID)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """
-                    run_query(insert_query, (new_title, new_summary, new_isbn, int(a_id), int(s_id), int(o_id), int(l_id)))
-                    st.success(f"✅ Added '{new_title}' successfully!")
-                    # Use st.rerun() so Tab 1 updates immediately
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"An error occurred: {e}")
+                insert_query = """
+                INSERT INTO BOOK (TITLE, SUMMARY, ISBN, AUTHOR, STATUS_ID, OWNER_ID, LANGUAGE_ID)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """
+                run_query(insert_query, (new_title, new_summary, new_isbn, int(a_id), int(s_id), int(o_id), int(l_id)))
+                st.success(f"Successfully added {new_title}!")
+                st.rerun()
