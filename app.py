@@ -196,6 +196,20 @@ with tab2:
         # Load and force all column names to UPPERCASE to avoid KeyErrors
         authors = pd.read_sql_query("SELECT * FROM AUTHOR", conn)
         authors.columns = [c.upper() for c in authors.columns]
+
+        # Handle empty values (NaN) so the code doesn't crash
+        authors['FIRSTNAME'] = authors['FIRSTNAME'].fillna('')
+        authors['LASTNAME'] = authors['LASTNAME'].fillna('')
+        
+        # 2. Create the combined name column
+        # This creates a "Lastname, Firstname" format
+        authors['FULL_NAME'] = authors['LASTNAME'] + ", " + authors['FIRSTNAME']
+        
+        # Optional: Clean up trailing commas if Firstname was empty
+        authors['FULL_NAME'] = authors['FULL_NAME'].str.strip(", ")
+        
+        # 3. Create the sorted list for the dropdown
+        author_options = sorted(authors['FULL_NAME'].unique().tolist())
         
         statuses = pd.read_sql_query("SELECT * FROM STATUS", conn)
         statuses.columns = [c.upper() for c in statuses.columns]
@@ -216,7 +230,10 @@ with tab2:
             new_isbn = st.text_input("ISBN")
             
             # Use UPPERCASE keys here to match the transformation above
-            author_choice = st.selectbox("Author", authors['LASTNAME'].tolist())
+            # author_choice = st.selectbox("Author", authors['LASTNAME'].tolist())
+            # 4. Update the Selectbox
+            author_choice = st.selectbox("Author", author_options)
+            
             status_choice = st.selectbox("Status", statuses['NAME'].tolist())
             owner_choice = st.selectbox("Owner", owners['NAME'].tolist())
             lang_choice = st.selectbox("Language", languages['NAME'].tolist())
@@ -229,7 +246,9 @@ with tab2:
                     st.warning("Please provide a title.")
                 else:
                     # Map names back to IDs using UPPERCASE keys
-                    a_id = authors[authors['LASTNAME'] == author_choice]['ID'].values[0]
+                    # 5. Get the ID back for the database (when saving)
+                    a_id = authors[authors['FULL_NAME'] == author_choice]['ID'].values[0]
+                    # a_id = authors[authors['LASTNAME'] == author_choice]['ID'].values[0]
                     s_id = statuses[statuses['NAME'] == status_choice]['ID'].values[0]
                     o_id = owners[owners['NAME'] == owner_choice]['ID'].values[0]
                     l_id = languages[languages['NAME'] == lang_choice]['ID'].values[0]
