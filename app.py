@@ -209,30 +209,66 @@ with tab2:
             current_book.index = [c.upper() for c in current_book.index]
             
             # --- SECTION 1: EDIT BOOK DETAILS (The Metadata Form) ---
+            # --- SECTION 1: EDIT BOOK DETAILS ---
             with st.form("edit_book_form"):
                 st.subheader("📖 Edit Book Details")
+                
+                # 1. Basic Text Inputs
                 edit_title = st.text_input("Title", value=current_book['TITLE'])
                 edit_summary = st.text_area("Summary", value=current_book['SUMMARY'])
                 
-                # Use the helper to find where the current author is in the list
-                author_idx = find_selectbox_index(
-                    authors_df_tab2, 'ID', current_book['AUTHOR'], author_list
+                # 2. Dropdown Data Preparation
+                # Get lists of names for the selectboxes
+                status_list = statuses['NAME'].tolist()
+                owner_list = owners['NAME'].tolist()
+                
+                # 3. Selectboxes with pre-selected current values
+                edit_author = st.selectbox(
+                    "Author", 
+                    author_list, 
+                    index=find_selectbox_index(authors_df_tab2, 'ID', current_book['AUTHOR'], author_list)
                 )
                 
-                edit_author = st.selectbox("Author", author_list, index=author_idx)
+                edit_status = st.selectbox(
+                    "Status", 
+                    status_list, 
+                    index=find_selectbox_index(statuses, 'ID', current_book['STATUS_ID'], status_list)
+                )
                 
+                edit_owner = st.selectbox(
+                    "Owner", 
+                    owner_list, 
+                    index=find_selectbox_index(owners, 'ID', current_book['OWNER_ID'], owner_list)
+                )
+                
+                # 4. Save Logic
                 if st.form_submit_button("Update Book Details"):
                     if not edit_title:
                         st.error("Title cannot be empty.")
                     else:
+                        # Convert selected names back to IDs
                         new_a_id = get_author_id(edit_author, authors_df_tab2)
-                        update_query = "UPDATE BOOK SET TITLE = ?, SUMMARY = ?, AUTHOR = ? WHERE ID = ?"
-                        run_query(update_query, (edit_title, edit_summary, int(new_a_id), book_id))
+                        new_s_id = get_dropdown_id(edit_status, statuses)
+                        new_o_id = get_dropdown_id(edit_owner, owners)
+                        
+                        update_query = """
+                        UPDATE BOOK 
+                        SET TITLE = ?, SUMMARY = ?, AUTHOR = ?, STATUS_ID = ?, OWNER_ID = ? 
+                        WHERE ID = ?
+                        """
+                        run_query(update_query, (
+                            edit_title, 
+                            edit_summary, 
+                            int(new_a_id), 
+                            int(new_s_id), 
+                            int(new_o_id), 
+                            book_id
+                        ))
                         
                         st.success("Updated successfully!")
-                        # This tells Streamlit to fetch fresh data next time
                         st.cache_data.clear() 
                         st.rerun()
+                
 
             st.markdown("---")
 
@@ -267,6 +303,7 @@ with tab2:
                             (book_id, str(new_start), str(new_end))
                         )
                         st.success("Reading session added!")
+                        st.cache_data.clear() # Clear cache here too
                         st.rerun()
 
 # --- TAB 3: ADD BOOKS ---
