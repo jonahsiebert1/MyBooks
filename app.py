@@ -228,7 +228,10 @@ with tab2:
                         new_a_id = get_author_id(edit_author, authors_df_tab2)
                         update_query = "UPDATE BOOK SET TITLE = ?, SUMMARY = ?, AUTHOR = ? WHERE ID = ?"
                         run_query(update_query, (edit_title, edit_summary, int(new_a_id), book_id))
+                        
                         st.success("Updated successfully!")
+                        # This tells Streamlit to fetch fresh data next time
+                        st.cache_data.clear() 
                         st.rerun()
 
             st.markdown("---")
