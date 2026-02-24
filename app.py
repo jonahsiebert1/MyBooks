@@ -310,52 +310,75 @@ with tab2:
 with tab3:
     st.header("➕ Add Books")
     
-    # Load data once
-    authors = load_authors()
-    author_options = sorted(authors['FULL_NAME'].unique().tolist())
-    statuses = load_dropdown_data("STATUS")
-    owners = load_dropdown_data("OWNER")
-    languages = load_dropdown_data("LANGUAGES")
+    # 1. Refresh data for dropdowns
+    authors_df_tab3 = load_authors()
+    author_options = sorted(authors_df_tab3['FULL_NAME'].unique().tolist())
+    
+    statuses_df = load_dropdown_data("STATUS")
+    owners_df = load_dropdown_data("OWNER")
+    languages_df = load_dropdown_data("LANGUAGES")
     
     # Create the form
     with st.form("add_book_form", clear_on_submit=True):
-        st.subheader("Add New Book")
-        new_title = st.text_input("Title")
+        st.subheader("Book Metadata")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            new_title = st.text_input("Title*")
+            new_isbn = st.text_input("ISBN")
+        with col2:
+            author_choice = st.selectbox("Author", author_options)
+            new_categories = st.text_input("Categories (e.g. Fantasy, History)")
+
         new_summary = st.text_area("Summary")
-        new_isbn = st.text_input("ISBN")
-        new_categories = st.text_input("Categories (comma-separated)")
+
+        st.divider()
+        st.subheader("Classification")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            status_choice = st.selectbox("Status", statuses_df['NAME'].tolist())
+        with c2:
+            owner_choice = st.selectbox("Owner", owners_df['NAME'].tolist())
+        with c3:
+            lang_choice = st.selectbox("Language", languages_df['NAME'].tolist())
         
-        author_choice = st.selectbox("Author", author_options, key="add_author_select")
-        status_choice = st.selectbox("Status", statuses['NAME'].tolist(), key="add_status_select")
-        owner_choice = st.selectbox("Owner", owners['NAME'].tolist(), key="add_owner_select")
-        lang_choice = st.selectbox("Language", languages['NAME'].tolist(), key="add_lang_select")
-        
-        submitted = st.form_submit_button("Save Book")
+        submitted = st.form_submit_button("💾 Save Book to Library")
 
         if submitted:
-            # Validation
+            # 2. Validation
             if not new_title:
-                st.error("Please provide a title.")
+                st.error("The book title is required.")
+            elif not author_choice:
+                st.error("Please select or add an author first.")
             else:
                 try:
-                    # Map names back to IDs
-                    a_id = get_author_id(author_choice, authors)
-                    s_id = get_dropdown_id(status_choice, statuses)
-                    o_id = get_dropdown_id(owner_choice, owners)
-                    l_id = get_dropdown_id(lang_choice, languages)
+                    # 3. Map names back to IDs using your helper functions
+                    a_id = get_author_id(author_choice, authors_df_tab3)
+                    s_id = get_dropdown_id(status_choice, statuses_df)
+                    o_id = get_dropdown_id(owner_choice, owners_df)
+                    l_id = get_dropdown_id(lang_choice, languages_df)
                     
+                    # 4. SQL Insert (Check that your column names match exactly)
                     insert_query = """
                     INSERT INTO BOOK (TITLE, SUMMARY, ISBN, CATEGORIES, AUTHOR, STATUS_ID, OWNER_ID, LANGUAGE_ID)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """
+                    
                     run_query(
                         insert_query, 
                         (new_title, new_summary, new_isbn, new_categories, int(a_id), int(s_id), int(o_id), int(l_id))
                     )
-                    st.success(f"Successfully added '{new_title}'!")
+                    
+                    st.success(f"✅ '{new_title}' has been added!")
+                    
+                    # 5. CRITICAL: Clear cache so Tab 1 and Tab 2 see the new book
+                    st.cache_data.clear()
+                    
+                    # Optional: Small delay or rerun to refresh the UI
                     st.rerun()
+                    
                 except Exception as e:
-                    st.error(f"Error adding book: {str(e)}")
+                    st.error(f"Database Error: {e}")
 
 # --- TAB 4: ADD AUTHOR ---
 with tab4:
