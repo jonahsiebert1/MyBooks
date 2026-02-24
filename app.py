@@ -19,7 +19,7 @@ def run_query(query, params=()):
 st.set_page_config(page_title="My Book Collection", layout="wide")
 st.title("📚 Personal Library Manager")
 
-tab1, tab2, tab3 = st.tabs(["📖 View Collection", "📝 Edit Books", "➕ Add Books"])
+tab1, tab2, tab3, tab4 = st.tabs(["📖 View Collection", "📝 Edit Books", "➕ Add Books", "➕ Add Author"])
 
 # --- TAB 1: VIEWING (Your existing logic) ---
 with tab1:
@@ -260,3 +260,63 @@ with tab2:
                     run_query(insert_query, (new_title, new_summary, new_isbn, int(a_id), int(s_id), int(o_id), int(l_id)))
                     st.success(f"Successfully added {new_title}!")
                     st.rerun()
+
+
+
+    with tab4:
+        st.header("Add Author")
+        
+        # Create the form
+        with st.form("add_author_form", clear_on_submit=True):
+            st.subheader("Add New Author")
+            # .strip() removes accidental leading/trailing spaces from user input
+            new_first_name = st.text_input("First name").strip()
+            new_last_name = st.text_input("Last name").strip()
+            
+            submitted = st.form_submit_button("Save Author")
+        
+            if submitted:
+                # 1. Validation: Ensure we don't have empty strings
+                if not new_first_name or not new_last_name:
+                    st.error("Both First Name and Last Name are required.")
+                else:
+                    # 2. Check for Duplicates using SQL (Efficient)
+                    # Using UPPER() makes the check case-insensitive
+                    check_query = """
+                    SELECT 1 FROM AUTHOR 
+                    WHERE UPPER(FIRSTNAME) = UPPER(?) AND UPPER(LASTNAME) = UPPER(?)
+                    LIMIT 1
+                    """
+                    
+                    # Assuming run_query returns a result or use a specific fetch function
+                    # If your run_query doesn't return data, you might need a get_data function here
+                    existing_author = pd.read_sql_query(check_query, get_db_connection(), params=(new_first_name, new_last_name))
+    
+                    if not existing_author.empty:
+                        st.warning(f"The author '{new_first_name} {new_last_name}' already exists in the database.")
+                    else:
+                        # 3. Insert the new record
+                        insert_query = """
+                        INSERT INTO AUTHOR (FIRSTNAME, LASTNAME)
+                        VALUES (?, ?)
+                        """
+                        try:
+                            run_query(insert_query, (new_first_name, new_last_name))
+                            st.success(f"Successfully added {new_first_name} {new_last_name}!")
+                            # Optional: st.rerun() to refresh other UI components that list authors
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"An error occurred: {e}")
+    
+        ---
+        ### Current Author List (Reference)
+        # We only load this for the UI, not for the validation logic
+        conn = get_db_connection()
+        authors_df = pd.read_sql_query("SELECT FIRSTNAME, LASTNAME FROM AUTHOR", conn)
+        conn.close()
+    
+        if not authors_df.empty:
+            authors_df.columns = [c.upper() for c in authors_df.columns]
+            authors_df['FULL_NAME'] = authors_df['LASTNAME'] + ", " + authors_df['FIRSTNAME']
+            st.caption("Existing Authors:")
+            st.write(", ".join(sorted(authors_df['FULL_NAME'].tolist())))
