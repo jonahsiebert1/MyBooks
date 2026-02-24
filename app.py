@@ -225,10 +225,12 @@ with tab2:
                     with st.form("new_reading_form"):
                         new_start = st.date_input("Start Date")
                         new_end = st.date_input("End Date")
+
+                        save_new_reading = st.form_submit_button("Add reading")
                         
-                        if st.form_submit_button("Add Session"):
+                        if save_new_reading:
                             run_query(
-                                "INSERT INTO READINGS (BOOK_ID, START, END) VALUES (?, ?, ?)",
+                                "INSERT INTO READINGS (book_id, start, end) VALUES (?, ?, ?)",
                                 (int(book_id), str(new_start), str(new_end))
                             )
                             st.success("Reading session added!")
