@@ -26,6 +26,14 @@ with tab1:
 
     # Page configuration
     st.set_page_config(page_title="My Book Collection", layout="wide")
+
+    # Inside tab1 load_data()
+    def load_readings():
+        with get_db_connection() as conn:
+            # Fetch all reading sessions
+            return pd.read_sql_query("SELECT * FROM READINGS", conn)
+    
+    readings_df = load_readings()
     
     
     def load_data():
@@ -96,11 +104,18 @@ with tab1:
     # Display as a clean table or cards
     for index, row in filtered_df.iterrows():
         with st.container():
-            st.subheader(row['TITLE'])
-            st.write(f"**Author:** {row['AUTHOR_NAME']} | **Kategorie:** {row['CATEGORIES']} | **Sprache:** {row['LANGUAGE']} | **Status:** {row['OWNER']}, {row['STATUS']}")
-            with st.expander("Zusammenfassung ausklappen"):
-                st.write(row['SUMMARY'])
-            st.divider()
+        st.subheader(row['TITLE'])
+        st.write(f"**Author:** {row['AUTHOR_NAME']} | **Status:** {row['STATUS']}")
+        
+        # Filter readings for THIS specific book
+        book_readings = readings_df[readings_df['BOOK_ID'] == row['ID']]
+        if not book_readings.empty:
+            dates_str = " | ".join([f"{r['START']} to {r['END']}" for _, r in book_readings.iterrows()])
+            st.caption(f"📖 **Read on:** {dates_str}")
+            
+        with st.expander("Zusammenfassung ausklappen"):
+            st.write(row['SUMMARY'])
+        st.divider()
 
 
     # ... (Your existing load_data and filter code goes here)
@@ -150,8 +165,12 @@ with tab2:
     st.subheader("📝 Edit Existing Book")
     selected_book_title = st.selectbox("Select a book to edit", ["-- Choose a Book --"] + book_titles)
 
+    
+
     if selected_book_title != "-- Choose a Book --":
         book_id = books_df[books_df['TITLE'] == selected_book_title]['ID'].values[0]
+
+        
         
         with get_db_connection() as conn:
             # Using query parameters (?) to prevent SQL injection and handle titles with quotes
@@ -161,6 +180,41 @@ with tab2:
         with st.form("edit_book_form"):
             edit_title = st.text_input("Title", value=current_book['TITLE'])
             edit_summary = st.text_area("Summary", value=current_book['SUMMARY'])
+
+            # Inside tab2, after loading current_book
+            st.markdown("---")
+            st.subheader("📊 Reading History")
+            
+            # Fetch readings for this book
+            readings = pd.read_sql_query("SELECT * FROM READINGS WHERE BOOK_ID = ?", 
+                                             get_db_connection(), params=(int(book_id),))
+
+            if not readings.empty:
+                for _, r in readings.iterrows():
+                    col1, col2, col3 = st.columns([3, 3, 1])
+                    col1.write(f"**Start:** {r['START']}")
+                    col2.write(f"**End:** {r['END']}")
+                    if col3.button("🗑️", key=f"del_{r['ID']}"):
+                        run_query("DELETE FROM READINGS WHERE ID = ?", (int(r['ID']),))
+                        st.rerun()
+            else:
+                st.info("No reading sessions recorded for this book.")
+            
+            # Part B: Add New Reading Session Form
+            with st.expander("➕ Add New Reading Session"):
+                with st.form("new_reading_form"):
+                    # Use date_input for better UX, or text_input if your DB uses plain strings
+                    new_start = st.date_input("Start Date")
+                    new_end = st.date_input("End Date")
+                    
+                    if st.form_submit_button("Add Session"):
+                        run_query("""
+                            INSERT INTO READINGS (BOOK_ID, START, END) 
+                            VALUES (?, ?, ?)
+                        """, (int(book_id), str(new_start), str(new_end)))
+                        st.success("Reading session added!")
+                        st.rerun()
+
             
             # Helper to find current index for the selectbox default
             def find_idx(df, id_col, current_val, list_to_search):
