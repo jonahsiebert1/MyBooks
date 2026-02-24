@@ -164,7 +164,7 @@ with tab1:
             if pd.notna(row['ID']):
                 book_readings = readings_df[readings_df['book_id'] == row['ID']]
                 if not book_readings.empty:
-                    dates_str = " | ".join([f"{r['START']} to {r['END']}" for _, r in book_readings.iterrows()])
+                    dates_str = " | ".join([f"{r['start']} to {r['end']}" for _, r in book_readings.iterrows()])
                     st.caption(f"📖 **Read on:** {dates_str}")
         
         with st.expander("Zusammenfassung ausklappen"):
