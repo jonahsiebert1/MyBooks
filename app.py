@@ -104,14 +104,14 @@ with tab1:
     # Display as a clean table or cards
     for index, row in filtered_df.iterrows():
         with st.container():
-        st.subheader(row['TITLE'])
-        st.write(f"**Author:** {row['AUTHOR_NAME']} | **Status:** {row['STATUS']}")
-        
-        # Filter readings for THIS specific book
-        book_readings = readings_df[readings_df['BOOK_ID'] == row['ID']]
-        if not book_readings.empty:
-            dates_str = " | ".join([f"{r['START']} to {r['END']}" for _, r in book_readings.iterrows()])
-            st.caption(f"📖 **Read on:** {dates_str}")
+            st.subheader(row['TITLE'])
+            st.write(f"**Author:** {row['AUTHOR_NAME']} | **Status:** {row['STATUS']}")
+            
+            # Filter readings for THIS specific book
+            book_readings = readings_df[readings_df['BOOK_ID'] == row['ID']]
+            if not book_readings.empty:
+                dates_str = " | ".join([f"{r['START']} to {r['END']}" for _, r in book_readings.iterrows()])
+                st.caption(f"📖 **Read on:** {dates_str}")
             
         with st.expander("Zusammenfassung ausklappen"):
             st.write(row['SUMMARY'])
