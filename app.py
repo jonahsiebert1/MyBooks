@@ -309,14 +309,4 @@ with tab2:
                             st.error(f"An error occurred: {e}")
     
 
-            ### Current Author List (Reference)
-            # We only load this for the UI, not for the validation logic
-            conn = get_db_connection()
-            authors_df = pd.read_sql_query("SELECT FIRSTNAME, LASTNAME FROM AUTHOR", conn)
-            conn.close()
-        
-            if not authors_df.empty:
-                authors_df.columns = [c.upper() for c in authors_df.columns]
-                authors_df['FULL_NAME'] = authors_df['LASTNAME'] + ", " + authors_df['FIRSTNAME']
-                st.caption("Existing Authors:")
-                st.write(", ".join(sorted(authors_df['FULL_NAME'].tolist())))
+          
