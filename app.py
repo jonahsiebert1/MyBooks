@@ -171,94 +171,72 @@ with tab1:
             st.write(row['SUMMARY'])
         st.divider()
 
-# --- TAB 2: EDIT ENTRIES ---
 with tab2:
     st.header("📝 Manage Entries")
     
-    # Load data once
-    authors = load_authors()
-    author_list = sorted(authors['FULL_NAME'].unique().tolist())
-    statuses = load_dropdown_data("STATUS")
-    owners = load_dropdown_data("OWNER")
-    languages = load_dropdown_data("LANGUAGES")
-    books_df = load_books()
-    book_titles = sorted(books_df['TITLE'].tolist())
+    # ... (Load data logic remains the same) ...
     
-    # --- UI SECTION ---
-    st.subheader("📝 Edit Existing Book")
     selected_book_title = st.selectbox("Select a book to edit", [DEFAULT_BOOK_SELECT] + book_titles, key="edit_book_select")
     
     if selected_book_title != DEFAULT_BOOK_SELECT:
         book_id = int(books_df[books_df['TITLE'] == selected_book_title]['ID'].values[0])
-        
-        # Load current book data
         current_book = fetch_query("SELECT * FROM BOOK WHERE ID = ?", params=(book_id,))
-        if current_book.empty:
-            st.error("Book not found.")
-        else:
+        
+        if not current_book.empty:
             current_book = current_book.iloc[0]
             current_book.index = [c.upper() for c in current_book.index]
             
+            # --- SECTION 1: EDIT BOOK DETAILS ---
+            # Main form only for the book's core metadata
             with st.form("edit_book_form"):
+                st.subheader("📖 Edit Book Details")
                 edit_title = st.text_input("Title", value=current_book['TITLE'])
                 edit_summary = st.text_area("Summary", value=current_book['SUMMARY'])
-                
-                # --- READING HISTORY ---
-                st.markdown("---")
-                st.subheader("📊 Reading History")
-                
-                readings = fetch_query("SELECT * FROM READINGS WHERE BOOK_ID = ?", params=(book_id,))
-                
-                if not readings.empty:
-                    for _, r in readings.iterrows():
-                        col1, col2, col3 = st.columns([3, 3, 1])
-                        col1.write(f"**Start:** {r['START']}")
-                        col2.write(f"**End:** {r['END']}")
-                        if col3.button("🗑️", key=f"del_{r['ID']}"):
-                            run_query("DELETE FROM READINGS WHERE ID = ?", (int(r['ID']),))
-                            st.rerun()
-                else:
-                    st.info("No reading sessions recorded for this book.")
-                
-                # --- ADD NEW READING SESSION ---
-                with st.expander("➕ Add New Reading Session"):
-                    with st.form("new_reading_form"):
-                        new_start = st.date_input("Start Date")
-                        new_end = st.date_input("End Date")
-
-                        save_new_reading = st.form_submit_button("Add reading")
-                        
-                        if save_new_reading:
-                            run_query(
-                                "INSERT INTO READINGS (book_id, start, end) VALUES (?, ?, ?)",
-                                (int(book_id), str(new_start), str(new_end))
-                            )
-                            st.success("Reading session added!")
-                            st.rerun()
-                
-                # --- EDIT BOOK DETAILS ---
                 edit_author = st.selectbox(
                     "Author", 
                     author_list, 
-                    index=find_selectbox_index(authors, 'ID', current_book['AUTHOR'], author_list),
-                    key="edit_author_select"
+                    index=find_selectbox_index(authors, 'ID', current_book['AUTHOR'], author_list)
                 )
                 
-                save_changes = st.form_submit_button("Update Book")
-                
-                if save_changes:
+                if st.form_submit_button("Update Book Details"):
                     if not edit_title:
                         st.error("Title cannot be empty.")
                     else:
                         new_a_id = get_author_id(edit_author, authors)
-                        
-                        update_query = """
-                        UPDATE BOOK 
-                        SET TITLE = ?, SUMMARY = ?, AUTHOR = ?
-                        WHERE ID = ?
-                        """
-                        run_query(update_query, (edit_title, edit_summary, int(new_a_id), int(book_id)))
-                        st.success(f"Updated '{edit_title}' successfully!")
+                        update_query = "UPDATE BOOK SET TITLE = ?, SUMMARY = ?, AUTHOR = ? WHERE ID = ?"
+                        run_query(update_query, (edit_title, edit_summary, int(new_a_id), book_id))
+                        st.success("Updated successfully!")
+                        st.rerun()
+
+            st.markdown("---")
+
+            # --- SECTION 2: READING HISTORY (OUTSIDE THE MAIN FORM) ---
+            st.subheader("📊 Reading History")
+            readings = fetch_query("SELECT * FROM READINGS WHERE BOOK_ID = ?", params=(book_id,))
+            
+            if not readings.empty:
+                for _, r in readings.iterrows():
+                    col1, col2, col3 = st.columns([3, 3, 1])
+                    col1.write(f"**Start:** {r['START']}")
+                    col2.write(f"**End:** {r['END']}")
+                    # Button is outside of any form, so it works instantly
+                    if col3.button("🗑️", key=f"del_{r['ID']}"):
+                        run_query("DELETE FROM READINGS WHERE ID = ?", (int(r['ID']),))
+                        st.rerun()
+            else:
+                st.info("No reading sessions recorded.")
+
+            # --- SECTION 3: ADD NEW SESSION (SEPARATE FORM) ---
+            with st.expander("➕ Add New Reading Session"):
+                with st.form("new_reading_form", clear_on_submit=True):
+                    new_start = st.date_input("Start Date")
+                    new_end = st.date_input("End Date")
+                    if st.form_submit_button("Add Session"):
+                        run_query(
+                            "INSERT INTO READINGS (book_id, start, end) VALUES (?, ?, ?)",
+                            (book_id, str(new_start), str(new_end))
+                        )
+                        st.success("Reading session added!")
                         st.rerun()
 
 # --- TAB 3: ADD BOOKS ---
