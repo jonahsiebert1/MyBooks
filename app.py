@@ -392,12 +392,13 @@ with tab4:
         submitted = st.form_submit_button("Save Author")
         
         if submitted:
-            # Validation
+            # 1. Validation
             if not new_first_name or not new_last_name:
                 st.error("Both First Name and Last Name are required.")
             else:
                 try:
-                    # Check for duplicates (case-insensitive)
+                    # 2. Check for duplicates (case-insensitive)
+                    # We use fetch_query which is already defined
                     check_query = """
                     SELECT 1 FROM AUTHOR 
                     WHERE UPPER(FIRSTNAME) = UPPER(?) AND UPPER(LASTNAME) = UPPER(?)
@@ -408,12 +409,28 @@ with tab4:
                     if not existing_author.empty:
                         st.warning(f"The author '{new_first_name} {new_last_name}' already exists.")
                     else:
+                        # 3. Insert the new author
                         insert_query = """
                         INSERT INTO AUTHOR (FIRSTNAME, LASTNAME)
                         VALUES (?, ?)
                         """
                         run_query(insert_query, (new_first_name, new_last_name))
-                        st.success(f"Successfully added {new_first_name} {new_last_name}!")
+                        
+                        st.success(f"✅ Successfully added {new_first_name} {new_last_name}!")
+                        
+                        # 4. THE FIX: Clear the cache so the new author appears in dropdowns
+                        st.cache_data.clear()
+                        
+                        # 5. Rerun to refresh the author lists in other tabs
                         st.rerun()
+                        
                 except Exception as e:
                     st.error(f"Error adding author: {str(e)}")
+
+    # Optional: Display a small list of recently added authors for confirmation
+    st.divider()
+    st.subheader("Existing Authors")
+    all_authors = load_authors() # This will fetch fresh data if cache was cleared
+    if not all_authors.empty:
+        # Show last 5 added authors
+        st.write(", ".join(all_authors['FULL_NAME'].tail(10).tolist()))
